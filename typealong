@@ -1,0 +1,179 @@
+#!/data/data/com.termux/files/usr/bin/python
+
+import os
+import pickle
+import re
+import sys
+
+# TODO: tech-debt
+# better dependency check
+# xml parsing
+# use html2text python api
+# windows compatibility?
+
+# Hacky way to test dependencies
+try:
+    import html2text
+except: # and install them
+    os.system('pip install --upgrade pip')
+    os.system('pip install epub')
+    os.system('pip install html2text')
+    os.system('pip install blessed')
+
+import blessed
+import epub
+
+# Get book name as argument
+book = sys.argv[1]
+
+# Prepare needed file paths
+cwd=os.getcwd()
+book_path = cwd + '/' + book
+work_path = cwd + '/' + book + '-ebook'
+save_file = cwd + '/' + book + '.pickle'
+
+# Check if pickle file exist
+if os.path.isfile(save_file):
+    # Load data from pickle file
+    data = pickle.load(open(save_file, 'rb'))
+    chapter = data['chapter']
+    paragraph = data['paragraph']
+    character = data['character']
+    chapters = data['chapters']
+else:
+    # Create tmp directory
+    # To use when unpacking epub
+    os.system('rm -rf ' + work_path)
+    os.makedirs(work_path)
+    os.chdir(work_path)
+
+    # Open the book
+    book = epub.open(book_path)
+    book.extractall()
+    os.chdir(work_path + '/OEBPS')
+
+    # Find all files and their order from content.opf
+
+    content = open('content.opf', 'r')
+    content_xml = content.readlines()
+    content.close()
+
+    content_dict = {}
+    content_list = []
+    for line in content_xml:
+        if line.find('item ') > 0:
+            id = re.findall(r'id="[^"]*"', line)[0][4:-1]
+            href = re.findall(r'href="[^"]*"', line)[0][6:-1]
+            content_dict[id] = href
+        elif line.find('itemref ') > 0:
+            idref = re.findall(r'idref="[^"]*"', line)[0][7:-1]
+            content_list.append(idref)
+
+    # Use html2text to convert one by one
+    # Store all chapters as lists of strings in a list
+
+    chapters = []
+    for idref in content_list:
+        textbuffer = os.popen('html2text --ignore-emphasis --body-width=0 ' + content_dict[idref])
+        chapters.append(textbuffer.read().split('\n'))
+        textbuffer.close()
+        while chapters[-1].count('') > 0:
+            chapters[-1].remove('')
+
+    # Clean up all files again
+    os.system('rm -rf ' + work_path)
+
+    # Set up terminal and navigation coords.
+    chapter = 0
+    paragraph = 0
+    character = 0
+    no_chapters = len(chapters)
+
+
+# Set up terminal window
+t = blessed.Terminal()
+
+print(t.enter_fullscreen)
+
+# Display a first page.
+# Then look for key input.
+
+# TODO: features
+# better quit symbol
+# skip char
+# stats in top: chapters, paragraphs, chars
+# skip word
+# print page
+# jump to specific chapter
+# jump paragraph/page
+# auto save
+
+l=0
+for c in chapters:
+    for p in c:
+        for s in p:
+            l+=len(s)
+totchar=l
+
+with t.cbreak():
+    while 1:
+        l=0
+        for c in chapters[:chapter]:
+            for p in c:
+                for s in p:
+                    l+=len(s)
+        for p in chapters[chapter]:
+            for s in p[:paragraph]:
+                l+=len(s)
+        curchar=l+character
+        para = chapters[chapter][paragraph]
+        size = (t.height - 1) * t.width
+        center = size / 2
+        start = max(character - center, 0)
+        end = min(start + size, len(para))
+        chapstr = 'Chapter: '+str(chapter+1)+'/'+str(len(chapters))
+        parastr = 'Paragraph: '+str(paragraph+1)+'/'+str(len(chapters[chapter]))
+        charstr = 'Progress: '+str(int(curchar*100/totchar))+'%'
+        print(t.clear())
+        print(chapstr + ' ' + parastr + ' ' + charstr)
+        print(t.green(para[start:character]) + t.red(para[character:end]))
+        next_char = para[character]
+        key = t.inkey()
+        if key == next_char:
+            character += 1
+        elif key == 'q':
+            print(t.exit_fullscreen)
+            print('Quit: q pressed')
+            break
+        elif key == 'n':
+            paragraph += 1
+            character = 0
+        elif key == 'c':
+            chapter += 1
+            paragraph = 0
+            character = 0
+        if chapter >= len(chapters):
+            print(t.exit_fullscreen)
+            print('Quit: book over')
+            break
+        if character >= len(para):
+            paragraph += 1
+            character = 0
+        if paragraph >= len(chapters[chapter]):
+            chapter += 1
+            paragraph = 0
+            character = 0
+        if chapter >= len(chapters):
+            print(t.exit_fullscreen)
+            print('Quit: book over')
+            break
+
+        # Save data to pickle file
+        data = {}
+        data['chapter'] = chapter
+        data['paragraph'] = paragraph
+        data['character'] = character
+        data['chapters'] = chapters
+
+pickle.dump(data, open(save_file, 'wb'))
+
