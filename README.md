@@ -17,5 +17,11 @@ Supported formats:
 * epub
 
 Pre-requisites:
+* Linux (see special windows notes below)
 * Python3
 * pip
+
+Windows usage:
+* Ensure that you have python 3.7 and download applicable wheel file from here: https://www.lfd.uci.edu/~gohlke/pythonlibs/#curses
+* Use "pip install curses....whl" to install it
+* python typealong example.epub
