@@ -74,7 +74,7 @@ else:
 
     chapters = []
     for idref in content_list:
-        textbuffer = os.popen('html2text --ignore-emphasis --body-width=0 ' + content_dict[idref])
+        textbuffer = os.popen('html2text --unicode-snob --ignore-emphasis --body-width=0 ' + content_dict[idref])
         chapters.append(textbuffer.read().split('\n'))
         textbuffer.close()
         while chapters[-1].count('') > 0:
