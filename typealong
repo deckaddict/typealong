@@ -11,6 +11,32 @@ import sys
 # use html2text python api
 # windows compatibility?
 
+class Book:
+    def __init__(self):
+        self.chapters = []
+        self.chapter = 0
+        self.paragraph = 0
+        self.character = 0
+
+    def chars_total(self):
+        l=0
+        for c in self.chapters:
+            for p in c:
+                for s in p:
+                    l+=len(s)
+        return l
+
+    def chars_partial(self, chapter, paragraph):
+        l=0
+        for c in self.chapters[:chapter]:
+            for p in c:
+                for s in p:
+                    l+=len(s)
+        for p in self.chapters[chapter]:
+            for s in p[:paragraph]:
+                l+=len(s)
+        return l
+
 # Hacky way to test dependencies
 try:
     import html2text
@@ -24,22 +50,23 @@ import blessed
 import epub
 
 # Get book name as argument
-book = sys.argv[1]
+filename = sys.argv[1]
 
 # Prepare needed file paths
 cwd=os.getcwd()
-book_path = cwd + '/' + book
-work_path = cwd + '/' + book + '-ebook'
-save_file = cwd + '/' + book + '.pickle'
+book_path = cwd + '/' + filename
+work_path = cwd + '/' + filename + '-ebook'
+save_file = cwd + '/' + filename + '.pickle'
 
 # Check if pickle file exist
 if os.path.isfile(save_file):
     # Load data from pickle file
-    data = pickle.load(open(save_file, 'rb'))
-    chapter = data['chapter']
-    paragraph = data['paragraph']
-    character = data['character']
-    chapters = data['chapters']
+    book = pickle.load(open(save_file, 'rb'))
+    chapter = book.chapter
+    paragraph = book.paragraph
+    character = book.character
+    chapters = book.chapters
+
 else:
     # Create tmp directory
     # To use when unpacking epub
@@ -48,12 +75,12 @@ else:
     os.chdir(work_path)
 
     # Open the book
-    book = epub.open(book_path)
-    book.extractall()
+    ebook = epub.open(book_path)
+    ebook.extractall()
     os.chdir(work_path + '/OEBPS')
 
     # Find all files and their order from content.opf
-
+    # TODO: This might be any .opf file anywhere in the package
     content = open('content.opf', 'r')
     content_xml = content.readlines()
     content.close()
@@ -72,13 +99,14 @@ else:
     # Use html2text to convert one by one
     # Store all chapters as lists of strings in a list
 
+    book = Book()
     chapters = []
     for idref in content_list:
         textbuffer = os.popen('html2text --unicode-snob --ignore-emphasis --body-width=0 ' + content_dict[idref])
-        chapters.append(textbuffer.read().split('\n'))
+        book.chapters.append(textbuffer.read().split('\n'))
         textbuffer.close()
-        while chapters[-1].count('') > 0:
-            chapters[-1].remove('')
+        while book.chapters[-1].count('') > 0:
+            book.chapters[-1].remove('')
 
     # Clean up all files again
     os.system('rm -rf ' + work_path)
@@ -87,8 +115,6 @@ else:
     chapter = 0
     paragraph = 0
     character = 0
-    no_chapters = len(chapters)
-
 
 # Set up terminal window
 t = blessed.Terminal()
@@ -108,31 +134,19 @@ print(t.enter_fullscreen)
 # jump paragraph/page
 # auto save
 
-l=0
-for c in chapters:
-    for p in c:
-        for s in p:
-            l+=len(s)
-totchar=l
+totchar = book.chars_total()
+parachar = book.chars_partial(chapter, paragraph)
 
 with t.cbreak():
     while 1:
-        l=0
-        for c in chapters[:chapter]:
-            for p in c:
-                for s in p:
-                    l+=len(s)
-        for p in chapters[chapter]:
-            for s in p[:paragraph]:
-                l+=len(s)
-        curchar=l+character
-        para = chapters[chapter][paragraph]
+        curchar=parachar+character
+        para = book.chapters[chapter][paragraph]
         size = (t.height - 1) * t.width
         center = size / 2
         start = max(character - center, 0)
         end = min(start + size, len(para))
-        chapstr = 'Chapter: '+str(chapter+1)+'/'+str(len(chapters))
-        parastr = 'Paragraph: '+str(paragraph+1)+'/'+str(len(chapters[chapter]))
+        chapstr = 'Chapter: '+str(chapter+1)+'/'+str(len(book.chapters))
+        parastr = 'Paragraph: '+str(paragraph+1)+'/'+str(len(book.chapters[chapter]))
         charstr = 'Progress: '+str(int(curchar*100/totchar))+'%'
         print(t.clear())
         print(chapstr + ' ' + parastr + ' ' + charstr)
@@ -152,28 +166,32 @@ with t.cbreak():
             chapter += 1
             paragraph = 0
             character = 0
-        if chapter >= len(chapters):
+        if chapter >= len(book.chapters):
             print(t.exit_fullscreen)
             print('Quit: book over')
             break
         if character >= len(para):
             paragraph += 1
             character = 0
-        if paragraph >= len(chapters[chapter]):
+        if paragraph >= len(book.chapters[chapter]):
             chapter += 1
             paragraph = 0
             character = 0
-        if chapter >= len(chapters):
+        if chapter >= len(book.chapters):
             print(t.exit_fullscreen)
             print('Quit: book over')
             break
+        if character == 0:
+            parachar = book.chars_partial(chapter, paragraph)
 
         # Save data to pickle file
-        data = {}
-        data['chapter'] = chapter
-        data['paragraph'] = paragraph
-        data['character'] = character
-        data['chapters'] = chapters
+#        data = {}
+#        data['chapter'] = chapter
+#        data['paragraph'] = paragraph
+#        data['character'] = character
+#        data['chapters'] = chapters
+        book.chapter = chapter
+        book.paragraph = paragraph
+        book.character = character
 
-pickle.dump(data, open(save_file, 'wb'))
-
+pickle.dump(book, open(save_file, 'wb'))
