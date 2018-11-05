@@ -138,6 +138,7 @@ totchar = book.chars_total()
 parachar = book.chars_partial(chapter, paragraph)
 
 with t.cbreak():
+    prev_key = None
     while 1:
         curchar=parachar+character
         para = book.chapters[chapter][paragraph]
@@ -151,21 +152,33 @@ with t.cbreak():
         print(t.clear())
         print(chapstr + ' ' + parastr + ' ' + charstr)
         print(t.green(para[start:character]) + t.red(para[character:end]))
+        if prev_key:
+            with t.location(0, t.height - 1):
+                print('Last key: ', prev_key)
         next_char = para[character]
         key = t.inkey()
         if key == next_char:
             character += 1
-        elif key == 'q':
+        elif key == '1':
             print(t.exit_fullscreen)
             print('Quit: q pressed')
             break
-        elif key == 'n':
+        elif key == '6':
             paragraph += 1
             character = 0
-        elif key == 'c':
+        elif key == '5':
+            paragraph -= 1
+            character = 0
+        elif key == '7':
             chapter += 1
             paragraph = 0
             character = 0
+        elif key == '4':
+            chapter -= 1
+            paragraph = 0
+            character = 0
+        else:
+           prev_key = key
         if chapter >= len(book.chapters):
             print(t.exit_fullscreen)
             print('Quit: book over')
