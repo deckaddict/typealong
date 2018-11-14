@@ -125,13 +125,10 @@ print(t.enter_fullscreen)
 # Then look for key input.
 
 # TODO: features
-# better quit symbol
 # skip char
-# stats in top: chapters, paragraphs, chars
 # skip word
 # print page
 # jump to specific chapter
-# jump paragraph/page
 # auto save
 
 totchar = book.chars_total()
@@ -143,8 +140,8 @@ with t.cbreak():
         curchar=parachar+character
         para = book.chapters[chapter][paragraph]
         size = (t.height - 1) * t.width
-        center = size / 2
-        start = max(character - center, 0)
+        center = int(size / 2)
+        start = max(min(character - center, len(para) - size), 0)
         end = min(start + size, len(para))
         chapstr = 'Chapter: '+str(chapter+1)+'/'+str(len(book.chapters))
         parastr = 'Paragraph: '+str(paragraph+1)+'/'+str(len(book.chapters[chapter]))
@@ -161,19 +158,28 @@ with t.cbreak():
             character += 1
         elif key == '1':
             print(t.exit_fullscreen)
-            print('Quit: q pressed')
+            print('Quit: 1 pressed')
             break
         elif key == '6':
+            character += 1
+        elif key == '5':
+            character -= 1
+        elif key == '7':
+            character += 1 #todo reach next whitespacr
+        elif key == '4':
+            character -= 1
+            character = max(character, 0)
+        elif key == '8':
             paragraph += 1
             character = 0
-        elif key == '5':
+        elif key == '3':
             paragraph -= 1
             character = 0
-        elif key == '7':
+        elif key == '9':
             chapter += 1
             paragraph = 0
             character = 0
-        elif key == '4':
+        elif key == '2':
             chapter -= 1
             paragraph = 0
             character = 0

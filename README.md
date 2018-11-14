@@ -4,11 +4,16 @@ Practice typing on any text
 Usage:
 * ./typealong example.epub
 * Typing text brings you forward.
-* Press 'n' to jump a paragraph.
-* Press 'c' to jump a chapter.
-* Press 'q' to quit.
+* Press '1' to quit.
+* Press '2' to rewind a chapter.
+* Press '3' to rewind a paragraph.
+* Press '4' to rewind a word.
+* Press '5' to rewind a character.
+* Press '6' to jump a character.
+* Press '7' to jump a word.
+* Press '8' to jump a paragraph.
+* Press '9' to jump a chapter.
 * State is saved upon quit.
-* Note: currently no way to rewind except deleting example.epub.pickle
 
 UIs:
 * Terminal based
